@@ -1,0 +1,7 @@
+1. Przekształcenie równania - najwyższa pochodna po lewej stronie, cała reszta po prawej stronie znaku równości
+2. Liczba integratorów (Integrator) = stopień najwyższej pochodnej w równaniu - wstawienie + połączenie
+3. Blok sumujący (Add) - wstawienie, ustawienie liczby wejśc i znaków im przypisanych
+4. Budowa równania - podłączenie odpowiednich kombinacji bloków do każdego z wejść bloczka Add
+5. Czas symulacji + krok całkowania
+6. Warunki początkowe - wstawienie odpowiednich wartości do bloków Integrator
+7. Prezentacja wyników - Scope, XY Graph
