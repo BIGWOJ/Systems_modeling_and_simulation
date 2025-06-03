@@ -11,7 +11,7 @@ class Person:
         self.direction = random.choice(['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'])
         self.state = 'healthy'
         self.age = 0
-        self.immunity = set_immunity(self)
+        self.immunity = self.set_immunity(self)
 
     def set_immunity(self):
         if self.age < 15 or self.age >= 70:
