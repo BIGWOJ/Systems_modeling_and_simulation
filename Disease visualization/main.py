@@ -15,6 +15,7 @@ class Person:
         self.age = np.random.randint(0, 60)
         self.set_immunities(initialize=True)
         self.current_turn_birth = False
+        self.current_turn_contact = False
 
     def set_immunities(self, initialize=False):
         if self.age < 15 or self.age >= 70:
@@ -29,6 +30,30 @@ class Person:
             self.immunity = 'high'
             if initialize:
                 self.immunity_number = random.randint(7, 10)
+
+    def update_immunity(self):
+        # def get_immunity(age):
+        #     if age < 15 or age >= 70:
+        #         return 'low'
+        #     elif 40 <= age < 70:
+        #         return 'medium'
+        #     else:
+        #         return 'high'
+
+        if get_immunity_number(self.age, 'low') < self.immunity_number < get_immunity_number(self.age, 'high'):
+            pass
+        else:
+            if self.immunity_number < get_immunity_number(self.age, 'low'):
+                if self.immunity == 'medium':
+                    self.immunity = 'low'
+                elif self.immunity == 'high':
+                    self.immunity = 'medium'
+
+            elif self.immunity_number >= get_immunity_number(self.age, 'high'):
+                if self.immunity == 'low':
+                    self.immunity = 'medium'
+                elif self.immunity == 'medium':
+                    self.immunity = 'high'
 
     def move(self):
         # x cordinate
@@ -56,6 +81,14 @@ def get_color(state):
         'sick': 'red',
         'recovering': 'orange'
     }.get(state)
+
+def get_immunity_number(age, low_high):
+        if age < 15 or age >= 70:
+            return 0 if low_high == 'low' else 3
+        elif 40 <= age < 70:
+            return 4 if low_high == 'low' else 6
+        else:
+            return 7 if low_high == 'low' else 10
 
 def set_random_direction(person):
     person.direction = random.choice([d for d in ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'] if d != person.direction])
@@ -104,11 +137,13 @@ def next_turn(xs, ys, colors):
         if person.current_state_counter in [2,5,7]:
             if person.current_state_counter == 2 and person.state == 'infected':
                 person.state = 'sick'
+                person.current_state_counter = 0
             if person.current_state_counter == 7 and person.state == 'sick':
                 person.state = 'recovering'
+                person.current_state_counter = 0
             if person.current_state_counter == 5 and person.state == 'recovering':
                 person.state = 'healthy'
-            person.current_state_counter = 0
+                person.current_state_counter = 0
 
 
         if is_contact(person, nearest_people[0]):
@@ -127,7 +162,51 @@ def next_turn(xs, ys, colors):
                     new_person.immunity_number = 3
                     population.append(new_person)
 
+            if not person.current_turn_contact and not nearest_people[0].current_turn_contact:
+                if person.state == 'healthy':
+                    if nearest_people[0].state == 'infected':
+                        if person.immunity == 'low':
+                            person.state = 'infected'
+                    elif nearest_people[0].state == 'sick':
+                        if person.immunity in ['low', 'medium']:
+                            person.state = 'infected'
+                        else:
+                            person.immunity_number -= 3
+                    elif nearest_people[0].state == 'recovering':
+                        nearest_people[0].immunity_number += 1
+                    elif nearest_people[0].state == 'healthy':
+                        person.immunity_number = max(person.immunity_number, nearest_people[0].immunity_number)
+                        if person.immunity_number > get_immunity_number(person.age, 'high'):
+                            person.immunity_number = get_immunity_number(person.age, 'high')
 
+                        nearest_people[0].immunity_number = max(nearest_people[0].immunity_number, person.immunity_number)
+                        if nearest_people[0].immunity_number > get_immunity_number(nearest_people[0].age, 'high'):
+                            nearest_people[0].immunity_number = get_immunity_number(nearest_people[0].age, 'high')
+
+                elif person.state == 'sick':
+                    if nearest_people[0].state == 'healthy':
+                        if nearest_people[0].immunity in ['low', 'medium']:
+                            nearest_people[0].state = 'infected'
+                        person.current_state_counter = 0
+                    elif nearest_people[0].state == 'recovering':
+                        if nearest_people[0].immunity in ['low', 'medium']:
+                            nearest_people[0].state = 'healthy'
+                    elif nearest_people[0].state == 'sick':
+                        person.current_state_counter = 0
+                        nearest_people[0].current_state_counter = 0
+
+                        person.immunity_number = min(person.immunity_number, nearest_people[0].immunity_number)
+                        nearest_people[0].immunity_number = min(nearest_people[0].immunity_number, person.immunity_number)
+
+                elif person.state == 'infected':
+                    if nearest_people[0].state == 'recovering':
+                        nearest_people[0].immunity_number -= 1
+                    elif nearest_people[0].state == 'infected':
+                        person.immunity_number -= 1
+                        nearest_people[0].immunity_number -= 1
+
+                person.update_immunity()
+                nearest_people[0].update_immunity()
 
         xs.append(person.x)
         ys.append(person.y)
@@ -135,20 +214,6 @@ def next_turn(xs, ys, colors):
 
     return xs, ys, colors
 
-
-# Initialize people
-population = [Person() for _ in range(20)]
-population[0].state = 'infected'
-
-# Set up the plot
-fig, ax = plt.subplots()
-ax.set_xlim(0, 100)
-ax.set_ylim(0, 100)
-
-# Initialize scatter plot
-scat = ax.scatter([], [], s=50)
-
-# Update function
 def update(frame):
     xs = []
     ys = []
@@ -158,9 +223,29 @@ def update(frame):
 
     scat.set_offsets(np.c_[xs, ys])
     scat.set_color(colors)
-    return scat,
+    print('healthy: ' ,sum(1 for person in population if person.state == 'healthy'))
+    print('infected: ',sum(1 for person in population if person.state == 'infected'))
+    print('sick: ',sum(1 for person in population if person.state == 'sick'))
+    print('recovering: ', sum(1 for person in population if person.state == 'recovering'), end='\n\n')
+    # for p in population:
+    #     print(p.current_state_counter, p.state if p.state != 'healthy' else '', end=' ')
+    ax.set_title(f"Turn: {frame + 1}")
+    return scat, ax.title
 
-# Run animation
-round_count = 1000
-ani = FuncAnimation(fig, update, frames=round_count, interval=100, blit=True, repeat=False)
+
+population_size = 200
+infected_people = 10
+population = [Person() for _ in range(population_size)]
+for person in population[:infected_people]:
+    person.state = 'infected'
+
+
+fig, ax = plt.subplots()
+ax.set_xlim(0, 100)
+ax.set_ylim(0, 100)
+
+scat = ax.scatter([], [], s=50)
+
+turn_count = 100
+ani = FuncAnimation(fig, update, frames=turn_count, interval=100, blit=False, repeat=False)
 plt.show()
